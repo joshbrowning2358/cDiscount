@@ -9,10 +9,10 @@ import numpy as np
 
 
 IMG_CHANNELS = 3
-INPUT_FILE = 'data/train_example.bson'
-DEST = 'data_example'
-# INPUT_FILE = 'data/train.bson'
-# DEST = 'data'
+#INPUT_FILE = 'data/train_example.bson'
+#DEST = 'data_example'
+INPUT_FILE = 'data/train.bson'
+DEST = 'data'
 
 data_generator = bson.decode_file_iter(open(INPUT_FILE, 'rb'))
 
@@ -37,13 +37,16 @@ while True:
         toimage(picture).save(DEST + '/' + str(category_id) + '/' + str(product_id) + '_' + str(sku_pic_index) + '.jpg')
         sku_pic_index += 1
 
+    if obs_count % 100 == 0:
+        print('{} images written!'.format(obs_count))
+
     obs_count += 1
 
 print 'Images read/written in {} seconds'.format(time.time() - start)
 
 
-dirs = os.listdir(DEST + '/validate')
-for dir in dirs:
-    files = os.listdir(DEST + '/validate/' + dir)
-    for file in files:
-        os.rename(DEST + '/validate/' + dir + '/' + file, DEST + '/train/' + dir + '/' + file)
+# dirs = os.listdir(DEST + '/validate')
+# for dir in dirs:
+#     files = os.listdir(DEST + '/validate/' + dir)
+#     for file in files:
+#         os.rename(DEST + '/validate/' + dir + '/' + file, DEST + '/train/' + dir + '/' + file)

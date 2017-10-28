@@ -13,7 +13,7 @@ with graph.as_default():
     targets = tf.placeholder(tf.int32, (c.batch_size))
 
     # FC Weights
-    fc_weights = tf.Variable(tf.truncated_normal((c.num_bottlenecks, c.num_targets), stddev=0.1))
+    fc_weights = tf.Variable(tf.truncated_normal((c.num_bottlenecks, c.num_targets), stddev=0.01))
     fc_biases = tf.Variable(tf.zeros((c.num_targets)))
 
     # Compute the network itself:
@@ -24,20 +24,26 @@ with graph.as_default():
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=c.learning_rate).minimize(loss)
 
 
+losses = []
+
 with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
 
-    file_name_iterator = None
+    remaining_inputs, remaining_labels = None, None
+    chunk_id = 1
     for i in range(c.num_steps):
-        labels, inputs, file_iterator = get_bottleneck_data(batch_size=c.batch_size,
-                                                            file_name_iterator=file_name_iterator)
+        inputs, labels, remaining_inputs, remaining_labels, chunk_id = get_bottleneck_data(c.batch_size, remaining_inputs, remaining_labels, chunk_id)
         _, current_loss = session.run([optimizer, loss], feed_dict={input: inputs, targets: labels})
         sys.stdout.write('.')
-        if i % 10 == 0:
-            print('Loss: {}'.format(current_loss))
+        losses += [current_loss]
+        if i % 25 == 24:
+            print('Average loss: {}'.format(np.mean(losses[len(losses) - 24:])))
+            np.savetxt('output/losses.csv', np.array(losses), delimiter=',')
 
     weights = session.run(fc_weights)
     biases = session.run(fc_biases)
 
-np.savetxt('weights.csv', weights, delimiter=',')
-np.savetxt('biases.csv', biases, delimiter=',')
+np.savetxt('output/weights.csv', weights, delimiter=',')
+np.savetxt('output/biases.csv', biases, delimiter=',')
+np.savetxt('output/losses.csv', np.array(losses), delimiter=',')
+

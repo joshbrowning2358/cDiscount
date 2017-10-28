@@ -18,6 +18,7 @@ with open('distinct_categories_example.p', 'rb') as file_:
     label_cnts = pickle.load(file=file_)
 TOP_CLASSES = [[k for k, v in label_cnts.items() if v > 35][0]]
 TOP_CLASSES.sort()
+raise Exception(TOP_CLASSES)
 
 
 def get_train_data(batch_size=10, data_generator=None, data_file='data/train_example.bson', classes=TOP_CLASSES,
