@@ -21,6 +21,8 @@ if [[ $ver == '1.3' ]]; then
   sudo pip install tensorflow==1.2.1
 fi
 
+pip install pandas
+
 cd $(dirname $0)
 DATADIR=$1
 OUTDIR=$2

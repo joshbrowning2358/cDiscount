@@ -2,46 +2,26 @@ import os
 import re
 import subprocess
 import shutil
+import fileinput
 
 import numpy as np
 
 n_files = 10
-chunk_location = '/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks'
+chunk_location = '/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks_small_example'
 
 current_dirs = os.listdir(chunk_location)
 current_dirs = [x for x in current_dirs if not re.match('.*txt', x)]
 
 # Convert directories to single text files
 for dir in current_dirs:
-    # subprocess.check_output(['awk', 'FNR==0{print ""}1', '{}/{}/*.txt'.format(chunk_location, dir), '>', '{}.txt'.format(dir)],
-    #                         stderr=subprocess.STDOUT)
-    success = True
-    file_cnt = len(os.listdir('{}/{}'.format(chunk_location, dir)))
-    if file_cnt < 2000:
-        result = os.system("""awk 'FNR==0{print ""}1'""" +
-                           ' {}/{}/*.txt > {}/{}.txt'.format(chunk_location, dir, chunk_location, dir))
-    elif file_cnt < 20000:
-        for i in range(10):
-            result = os.system("""awk 'FNR==0{print ""}1'""" +
-                               ' {}/{}/*{}\_?.jpg*.txt > {}/{}_{}.txt'.format(chunk_location, dir, i, chunk_location, i, dir))
-            if result != 0:
-                success = False
-    else:
-        for i in range(100):
-            if len(str(i)) == 1:
-                i = '0' + str(i)
-            result = os.system("""awk 'FNR==0{print ""}1'""" +
-                               ' {}/{}/*{}\_?.jpg*.txt > {}/{}_{}.txt'.format(chunk_location, dir, i, chunk_location, i, dir))
-            if result != 0:
-                success = False
-    if success:
-        os.system('cat {}/*_{}.txt > {}/{}.txt'.format(chunk_location, dir, chunk_location, dir))
-        shutil.rmtree('{}/{}'.format(chunk_location, dir))
-        print('Converted directory {}/ into file {}.csv'.format(dir, dir))
-    else:
-        print('Conversion failed for directory {}, not removed!'.format(dir))
-    os.system('rm {}/[0-9]_{}.txt'.format(chunk_location, dir))
-    os.system('rm {}/[0-9][0-9]_{}.txt'.format(chunk_location, dir))
+    base = '{}/{}'.format(chunk_location, dir)
+    filenames = [base + '/' + x for x in os.listdir(base)]
+    with open(base + '.txt', 'w') as f_out:
+        f_in = fileinput.input(filenames)
+        for line in f_in:
+            f_out.write(line + '\n')
+        f_in.close()
+    shutil.rmtree('{}/{}'.format(chunk_location, dir))
 
 current_files = os.listdir(chunk_location)
 current_files = [x for x in current_files if re.match('^1.*txt', x)]

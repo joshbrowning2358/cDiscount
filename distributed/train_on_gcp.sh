@@ -23,7 +23,7 @@ WORKDIR=/tmp/workdir
 # else
 #   BUCKET=$1
 # fi
-BUCKET = "gs://cDiscount-josh"
+BUCKET="gs://cdiscount-josh"
 
 JOBNAME=job_$(date -u +%y%m%d_%H%M%S)
 DATADIR=${BUCKET}/input
@@ -88,9 +88,9 @@ for  i in $(seq 0 $NUM_PS); do
   gcloud compute ssh ps-${i} -- rm -rf $WORKDIR
   gcloud compute ssh ps-${i} -- mkdir -p $WORKDIR
   gcloud beta compute scp --recurse \
-    /tmp/tf_config.json worker_script.sh ../trainer/ \
+    /tmp/tf_config.json compute_engine_script.sh trainer/ \
     ps-${i}:$WORKDIR
-  gcloud compute ssh ps-${i} -- $WORKDIR/start-dist-mnist.sh $DATADIR $OUTDIR &
+  gcloud compute ssh ps-${i} -- $WORKDIR/compute_engine_script.sh $DATADIR $OUTDIR &
 done
 
 # Start workers in the background
@@ -99,9 +99,9 @@ for  i in $(seq 0 $NUM_WORKER); do
   gcloud compute ssh worker-${i} -- rm -rf $WORKDIR
   gcloud compute ssh worker-${i} -- mkdir -p $WORKDIR
   gcloud beta compute scp --recurse \
-    /tmp/tf_config.json worker_script.sh ../trainer/ \
+    /tmp/tf_config.json compute_engine_script.sh trainer/ \
     worker-${i}:$WORKDIR
-  gcloud compute ssh worker-${i} -- $WORKDIR/start-dist-mnist.sh $DATADIR $OUTDIR &
+  gcloud compute ssh worker-${i} -- $WORKDIR/compute_engine_script.sh $DATADIR $OUTDIR &
 done
 
 # Start a master
@@ -109,9 +109,9 @@ echo "Starting master-0..."
 gcloud compute ssh master-0 -- rm -rf $WORKDIR
 gcloud compute ssh master-0 -- mkdir -p $WORKDIR
 gcloud beta compute scp --recurse \
-  /tmp/tf_config.json worker_script.sh ../trainer/ \
+  /tmp/tf_config.json compute_engine_script.sh trainer/ \
   master-0:$WORKDIR
-gcloud compute ssh master-0 -- $WORKDIR/start-dist-mnist.sh $DATADIR $OUTDIR
+gcloud compute ssh master-0 -- $WORKDIR/compute_engine_script.sh $DATADIR $OUTDIR
 
 # Cleanup
 echo "Done. Force stop remaining processes."
