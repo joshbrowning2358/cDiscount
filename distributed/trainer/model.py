@@ -1,66 +1,78 @@
 import sys
 
 import tensorflow as tf
+from tensorflow.python.estimator.model_fn import ModeKeys as Modes
 import numpy as np
 
-from get_bottleneck_data import get_bottleneck_data
 import constants as c
 
 
-class BottleneckReader(object):
-    """
-    This class is just for keeping track of the current state of the data reading
-    """
-    def __init__(main, current_features=None, current_target=None, current_chunk_id=0):
-        self.current_features = current_features
-        self.current_target = current_target
-        self.current_chunk_id = current_chunk_id
-
-    def get_data(data_dir, batch_size):
-        features, labels, self.current_features, self.current_target, self.current_chunk_id =\
-            get_bottleneck_data(data_dir, batch_size, self.current_features, self.current_target,
-                                self.current_chunk_id)
-
-
-reader = BottleneckReader()
-
-
-def _fc_model_fn(features, labels, mode):
+def model_fn(features, labels, mode):
     # Compute the network itself:
-    logits = tf.dense(inputs=features, units=c.num_targets, activation=tf.nn.relu)
+    logits = tf.layers.dense(inputs=features['inputs'], units=c.num_targets, activation=tf.nn.relu)
 
     # Define operations
     if mode in (Modes.PREDICT, Modes.EVAL):
-        predicted_indices = tf.argmax(input=logits, axis=1)
+        predicted_values = tf.argmax(input=logits, axis=1)
         probabilities = tf.nn.softmax(logits, name='softmax_tensor')
 
     if mode in (Modes.TRAIN, Modes.EVAL):
         global_step = tf.contrib.framework.get_or_create_global_step()
-        label_indices = tf.cast(labels, tf.int32)
-        loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=tf.one_hot(label_indices, depth=c.num_targets), logits=logits)
+        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
         tf.summary.scalar('OptimizeLoss', loss)
 
+    if mode == Modes.PREDICT:
+        predictions = {'classes': predicted_values, 'probabilities': probabilities}
+        export_outputs = {'prediction': tf.estimator.export.PredictOutput(predictions)}
+        return tf.estimator.EstimatorSpec(mode, predictions=predictions, export_outputs=export_outputs)
 
-def input_fn(file_path, batch_size, train):
-    if train:
-        reader.get_data(file_path, batch_size)
-    else:
-        reader.get_data(file_path + '/eval', batch_size)
+    if mode == Modes.TRAIN:
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+        train_op = optimizer.minimize(loss, global_step=global_step)
+        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+
+    if mode == Modes.EVAL:
+        label_values = tf.argmax(input=labels, axis=1)
+        eval_metric_ops = {'accuracy': tf.metrics.accuracy(label_values, predicted_values)}
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
 
-def get_input_fn(file_path, batch_size, train):
-    return lambda: input_fn(file_path, batch_size, train)
+def read_and_decode(filename_queue):
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(filename_queue)
+    features = tf.parse_single_example(
+        serialized_example,
+        features={
+            'bottlenecks': tf.FixedLenFeature([c.num_bottlenecks], tf.float32),
+            'label': tf.FixedLenFeature([c.num_targets], tf.float32),
+        })
+    return features['bottlenecks'], features['label']
+
+
+def get_input_fn(filename, batch_size=5):
+
+    def input_fn():
+        filename_queue = tf.train.string_input_producer([filename])
+
+        image, label = read_and_decode(filename_queue)
+        images, labels = tf.train.batch(
+            [image, label], batch_size=batch_size,
+            capacity=1000 + 3 * batch_size)
+
+        return {'inputs': images}, labels
+
+    return input_fn
 
 
 def build_estimator(model_dir):
-  return tf.estimator.Estimator(
-      model_fn=_fc_model_fn,
-      model_dir=model_dir,
-      config=tf.contrib.learn.RunConfig(save_checkpoints_secs=180))
+    est = tf.estimator.Estimator(
+        model_fn=_fc_model_fn,
+        model_dir=model_dir,
+        config=tf.contrib.learn.RunConfig(save_checkpoints_secs=180))
+    return est
 
 
 def serving_input_fn():
-  inputs = {'inputs': tf.placeholder(tf.float32, [None, 784])}
-  return tf.estimator.export.ServingInputReceiver(inputs, inputs)
-
+    inputs = {'inputs': tf.placeholder(tf.float32, [None, c.num_bottlenecks])}
+    out = tf.estimator.export.ServingInputReceiver(inputs, inputs)
+    return out

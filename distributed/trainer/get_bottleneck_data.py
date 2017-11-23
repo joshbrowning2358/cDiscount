@@ -9,7 +9,7 @@ import constants as c
 # DATA_DIR = 'gs://cdiscount-josh/input'
 
 def get_bottleneck_data(data_dir, batch_size=64, current_features=None, current_target=None,
-					    current_chunk_id=0, classes=TOP_CLASSES):
+					    current_chunk_id=0, classes=None):
     """
     Returns labels and features for batch_size observations.  Also returns current_features and current_target with 
     data removed, as well as the new current_chunk_id.  If current_data is None, current_chunk_id will be used to read
@@ -21,24 +21,25 @@ def get_bottleneck_data(data_dir, batch_size=64, current_features=None, current_
     :param classes: list of the classes to map class to id
     :return: A tuple of labels, image features, and updated inputs for next round.
     """
-    label_cnts = np.genfromtxt(os.path.join(data_dir, 'distinct_categories.csv'), delimiter=',', dtype=[int, int])
-	top_classes = [k for k, v in label_cnts if v > 500] # Over 1,600 categories, and not all data yet
-	top_classes.sort()
+    if classes is None:
+        label_cnts = np.genfromtxt(os.path.join(data_dir, 'distinct_categories.csv'), delimiter=',', dtype=[int, int])
+        top_classes = [k for k, v in label_cnts if v > 500] # Over 1,600 categories, and not all data yet
+        classes = top_classes.sort()
     
     if current_features is not None and current_features.shape[0] < batch_size:
-    	current_features = None
+        current_features = None
     
     if current_features is None:
-    	current_features = np.genfromtxt(os.path.join(data_dir, '/chunked_file_{}.txt'.format(current_chunk_id)))
-    	current_target = np.genfromtxt(os.path.join(data_dir, '/chunked_labels_{}.txt'.format(current_chunk_id)))
-    	# Shuffle data randomly
-    	perm = np.random.permutation(current_features.shape[0])
-    	current_features = current_features[perm, :]
-    	current_target = current_target[perm]
+        current_features = np.genfromtxt(os.path.join(data_dir, '/chunked_file_{}.txt'.format(current_chunk_id)))
+        current_target = np.genfromtxt(os.path.join(data_dir, '/chunked_labels_{}.txt'.format(current_chunk_id)))
+        # Shuffle data randomly
+        perm = np.random.permutation(current_features.shape[0])
+        current_features = current_features[perm, :]
+        current_target = current_target[perm]
 
-    	current_chunk_id += 1
-    	if current_chunk_id == 10:
-    		current_chunk_id = 0
+        current_chunk_id += 1
+        if current_chunk_id == 10:
+            current_chunk_id = 0
     
     bottlenecks = current_features[:batch_size]
     labels = [get_class_id(x, classes) for x in current_target[:batch_size]]

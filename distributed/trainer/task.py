@@ -19,15 +19,10 @@ def generate_experiment_fn(data_dir,
 
     def _experiment_fn(output_dir):
         return Experiment(
-            model.build_estimator(output_dir),
-            train_input_fn=model.get_input_fn(
-                file_path=data_dir,
-                batch_size=train_batch_size,
-                train=True),
-            eval_input_fn=model.get_input_fn(
-                file_path=data_dir,
-                batch_size=eval_batch_size,
-                train=False),
+            tf.estimator.Estimator(model_fn=model.model_fn, model_dir=output_dir,
+                                   config=tf.contrib.learn.RunConfig(save_checkpoints_secs=180)),
+            train_input_fn=model.get_input_fn(data_dir + '/train.tfrecords', batch_size=train_batch_size),
+            eval_input_fn=model.get_input_fn(data_dir + '/eval.tfrecords', batch_size=eval_batch_size),
             export_strategies=[saved_model_export_utils.make_export_strategy(
                 model.serving_input_fn,
                 default_output_alternative_key=None,
@@ -36,14 +31,15 @@ def generate_experiment_fn(data_dir,
             eval_steps=eval_steps,
             **experiment_args
         )
+
     return _experiment_fn
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_dir',
+        default='/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks_small_example/',
         help='GCS or local path to training data',
-        required=True
     )
     parser.add_argument(
         '--train_batch_size',
@@ -71,8 +67,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--output_dir',
+        default='./temp',
         help='GCS location to write checkpoints and export models',
-        required=True
     )
     parser.add_argument(
         '--job-dir',
@@ -102,5 +98,7 @@ if __name__ == '__main__':
     output_dir = arguments.pop('output_dir')
 
     # Run the training job
+    print('-'*120)
+    print('Running job!')
+    print('-'*120)
     learn_runner.run(generate_experiment_fn(**arguments), output_dir)
- 

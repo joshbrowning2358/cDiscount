@@ -7,10 +7,9 @@ from skimage.data import imread
 from scipy.misc import toimage
 import numpy as np
 
-
 IMG_CHANNELS = 3
-#INPUT_FILE = 'data/train_example.bson'
-#DEST = 'data_example'
+# INPUT_FILE = 'data/train_example.bson'
+# DEST = 'data_example'
 INPUT_FILE = 'data/train.bson'
 DEST = 'data'
 
