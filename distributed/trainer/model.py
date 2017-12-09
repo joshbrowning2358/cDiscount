@@ -27,7 +27,8 @@ def model_fn(features, labels, mode):
         return tf.estimator.EstimatorSpec(mode, predictions=predictions, export_outputs=export_outputs)
 
     if mode == Modes.TRAIN:
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+        optimizer = tf.train.AdamOptimizer(learning_rate=c.learning_rate, beta1=c.beta1,
+                                           beta2=c.beta2, epsilon=c.epsilon)
         train_op = optimizer.minimize(loss, global_step=global_step)
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
@@ -49,10 +50,14 @@ def read_and_decode(filename_queue):
     return features['bottlenecks'], features['label']
 
 
-def get_input_fn(filename, batch_size=5):
+def get_input_fn(filenames, batch_size=5):
+    """
+    :param filenames: List of files to read from
+    :return: A function which, when called, returns the input data
+    """
 
     def input_fn():
-        filename_queue = tf.train.string_input_producer([filename])
+        filename_queue = tf.train.string_input_producer(filenames)
 
         image, label = read_and_decode(filename_queue)
         images, labels = tf.train.batch(

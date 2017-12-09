@@ -1,4 +1,6 @@
 import argparse
+import os
+import re
 
 import pandas as pd
 import numpy as np
@@ -9,6 +11,8 @@ from tensorflow.contrib.learn.python.learn.utils import saved_model_export_utils
 
 import model
 
+tf.logging.set_verbosity(tf.logging.INFO)
+
 
 def generate_experiment_fn(data_dir,
                            train_batch_size=100,
@@ -18,11 +22,17 @@ def generate_experiment_fn(data_dir,
                            **experiment_args):
 
     def _experiment_fn(output_dir):
+        train_files = os.listdir(data_dir)
+        train_files = [data_dir.rstrip(os.sep) + os.sep + f for f in train_files if re.match('.*\.tfrecords', f)]
+        np.random.shuffle(train_files)
+        eval_files = list(train_files[:500])
+        train_files = list(np.delete(train_files, range(500)))
+
         return Experiment(
             tf.estimator.Estimator(model_fn=model.model_fn, model_dir=output_dir,
                                    config=tf.contrib.learn.RunConfig(save_checkpoints_secs=180)),
-            train_input_fn=model.get_input_fn(data_dir + '/train.tfrecords', batch_size=train_batch_size),
-            eval_input_fn=model.get_input_fn(data_dir + '/eval.tfrecords', batch_size=eval_batch_size),
+            train_input_fn=model.get_input_fn(train_files, batch_size=train_batch_size),
+            eval_input_fn=model.get_input_fn(eval_files, batch_size=eval_batch_size),
             export_strategies=[saved_model_export_utils.make_export_strategy(
                 model.serving_input_fn,
                 default_output_alternative_key=None,
@@ -38,7 +48,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_dir',
-        default='/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks_small_example/',
+        default='/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks_v2',
         help='GCS or local path to training data',
     )
     parser.add_argument(

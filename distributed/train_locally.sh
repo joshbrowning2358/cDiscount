@@ -1,0 +1,1 @@
+python trainer/task.py --output_dir=/Users/joshuabrowning/Personal/Kaggle/cDiscount/output/tf_output --data_dir=/Users/joshuabrowning/Personal/Kaggle/cDiscount/tf_files/bottlenecks_v2 --train_steps=1000000
